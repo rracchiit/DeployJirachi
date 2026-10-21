@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import apps
+from backend.app.api import apps
 
 app = FastAPI(title="CloudForge API", version="0.2.0")
 
