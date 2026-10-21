@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CloudForge Dashboard</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f3f5f8;--surface:#fff;--ink:#14202e;--muted:#5b6b7d;--line:#dbe1e8;--accent:#0b7a75;--accent-ink:#fff;
+--ok:#15803d;--warn:#a16207;--bad:#b91c1c;--info:#1d4ed8;--log:#0f1722;--logink:#c9d6e2}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d141c;--surface:#151f2b;--ink:#e6edf4;--muted:#92a3b5;--line:#263445;--accent:#3dbdb5;--accent-ink:#06201f;--ok:#4ade80;--warn:#facc15;--bad:#f87171;--info:#7aa2ff;--log:#090e14}}
+:root[data-theme="dark"]{--bg:#0d141c;--surface:#151f2b;--ink:#e6edf4;--muted:#92a3b5;--line:#263445;--accent:#3dbdb5;--accent-ink:#06201f;--ok:#4ade80;--warn:#facc15;--bad:#f87171;--info:#7aa2ff;--log:#090e14}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+h1{font-size:22px;margin:0;letter-spacing:-.01em}
+.badge{font-size:12px;padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.sp{flex:1}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:7px 13px}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.grid{display:grid;grid-template-columns:1fr 1.5fr;gap:16px}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+h2{font-size:16px;margin:0 0 12px}
+form{display:grid;gap:10px}
+label{font-size:13px;color:var(--muted);display:grid;gap:4px}
+input,select{font:inherit;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+.err{color:var(--bad);font-size:13px;min-height:18px}
+.hint{font-size:12.5px;color:var(--muted)}
+.app{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;background:var(--bg);width:100%;text-align:left}
+.app[aria-current="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.app b{display:block}.app small{color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--muted)}
+.s-HEALTHY .dot,.dot.s-HEALTHY{background:var(--ok)}
+.dot.s-FAILED{background:var(--bad)}
+.dot.s-QUEUED,.dot.s-BUILDING,.dot.s-STARTING{background:var(--warn);animation:pulse 1s infinite}
+.dot.s-STOPPED{background:var(--muted)}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.dot{animation:none!important}}
+.pill{font-size:12px;font-weight:600;padding:2px 9px;border-radius:99px;border:1px solid currentColor}
+.p-HEALTHY{color:var(--ok)}.p-FAILED{color:var(--bad)}.p-QUEUED,.p-BUILDING,.p-STARTING{color:var(--warn)}.p-STOPPED{color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.states{display:flex;gap:4px;margin:14px 0}
+.states div{flex:1;text-align:center;font-size:12px;padding:6px 2px;border-radius:6px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+.states .done{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.states .cur{border-color:var(--warn);color:var(--warn);font-weight:600}
+.states .bad{border-color:var(--bad);color:var(--bad);font-weight:600}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.kv div{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.kv span{display:block;font-size:12px;color:var(--muted)}
+.kv a{color:var(--accent);word-break:break-all}
+pre{background:var(--log);color:var(--logink);border-radius:8px;padding:12px;margin:0;height:200px;overflow:auto;font:12.5px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
+.l-err{color:#ff8a8a}.l-ok{color:#7ee2a8}
+.tabs{display:flex;gap:6px;margin:14px 0 8px}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:500}
+.scroll{overflow-x:auto}
+.empty{text-align:center;color:var(--muted);padding:28px 8px}
+svg.spark{width:100%;height:60px;display:block}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+@media (max-width:520px){.charts{grid-template-columns:1fr}}
+.charts div{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.charts span{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>CloudForge</h1>
+    <span class="badge">Demo mode: simulated data, backend not connected</span>
+    <span class="sp"></span>
+    <button id="theme" type="button">Toggle theme</button>
+  </header>
+
+  <div class="grid">
+    <section>
+      <div class="panel" style="margin-bottom:16px">
+        <h2>Deploy a repository</h2>
+        <form id="form" novalidate>
+          <label>GitHub repository URL
+            <input id="url" placeholder="https://github.com/you/hello-ok" autocomplete="off">
+          </label>
+          <label>Branch
+            <input id="branch" value="main">
+          </label>
+          <div class="err" id="err" role="alert"></div>
+          <button class="primary" type="submit">Deploy</button>
+          <div class="hint">Try a name containing “broken” (like <code>hello-broken</code>) to see a failed build.</div>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>Applications</h2>
+        <div id="apps"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="detail"></section>
+  </div>
+</div>
+
+<script>
+"use strict";
+const STAGES=["QUEUED","BUILDING","STARTING","HEALTHY"];
+const apps=[];let selected=null;let tab="build";let seq=1;
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const now=()=>new Date().toLocaleTimeString();
+const sha=()=>Array.from({length:7},()=>"0123456789abcdef"[Math.random()*16|0]).join("");
+
+/* theme */
+$("#theme").onclick=()=>{
+  const r=document.documentElement;
+  const dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;
+  r.dataset.theme=dark?"light":"dark";
+};
+
+/* URL validation: same rules the backend will enforce */
+function parseRepo(u){
+  let x;
+  try{x=new URL(u.trim())}catch{return{error:"Enter a full URL, like https://github.com/owner/repo."}}
+  if(x.protocol!=="https:")return{error:"Only https URLs are allowed."};
+  if(x.hostname!=="github.com")return{error:"Only github.com repositories are supported."};
+  const m=x.pathname.replace(/\.git$/,"").split("/").filter(Boolean);
+  if(m.length!==2||!m.every(p=>/^[A-Za-z0-9._-]+$/.test(p)))return{error:"URL must look like github.com/owner/repo."};
+  return{owner:m[0],repo:m[1]};
+}
+
+$("#form").onsubmit=e=>{
+  e.preventDefault();
+  const r=parseRepo($("#url").value);
+  const br=$("#branch").value.trim();
+  if(r.error){$("#err").textContent=r.error;return}
+  if(!/^[A-Za-z0-9._\/-]+$/.test(br)){$("#err").textContent="Branch name has invalid characters.";return}
+  $("#err").textContent="";
+  let app=apps.find(a=>a.owner===r.owner&&a.repo===r.repo);
+  if(!app){
+    app={id:seq++,owner:r.owner,repo:r.repo,slug:(r.repo+"-"+Math.random().toString(36).slice(2,6)).toLowerCase().replace(/[^a-z0-9-]/g,"-"),
+      deployments:[],status:"NONE",cpu:[],mem:[],startedAt:null};
+    apps.unshift(app);
+  }
+  if(app.busy){$("#err").textContent="A deployment is already running for this app.";return}
+  selected=app.id;deploy(app,br);
+};
+
+/* simulated deployment pipeline: QUEUED -> BUILDING -> STARTING -> HEALTHY | FAILED */
+function deploy(app,branch){
+  const d={n:app.deployments.length+1,commit:sha(),branch,state:"QUEUED",build:[],runtime:[],events:[],created:now()};
+  const fail=/broken/i.test(app.repo);
+  app.deployments.unshift(d);app.busy=true;app.status="QUEUED";
+  const ev=(s)=>{d.state=s;app.status=s;d.events.push({t:now(),s});render()};
+  const log=(m,c="")=>{d.build.push({m,c});render()};
+  ev("QUEUED");
+  const steps=[
+    [600,()=>{ev("BUILDING");log(`$ git clone --depth 1 --branch ${branch} github.com/${app.owner}/${app.repo}`);}],
+    [900,()=>log(`Checked out ${d.commit}`)],
+    [700,()=>log("Step 1/5 : FROM python:3.12-slim")],
+    [700,()=>log("Step 2/5 : WORKDIR /app")],
+    [800,()=>log("Step 3/5 : COPY requirements.txt . && pip install -r requirements.txt")],
+  ];
+  if(fail){
+    steps.push([900,()=>{log("Step 4/5 : RUN pip install not-a-real-package==9.9.9","");log("ERROR: No matching distribution found for not-a-real-package==9.9.9","l-err");}]);
+    steps.push([500,()=>{log("Build failed: exit code 1","l-err");ev("FAILED");app.busy=false;render()}]);
+  }else{
+    steps.push([800,()=>log("Step 4/5 : COPY . .")]);
+    steps.push([600,()=>log("Step 5/5 : CMD [\"python\",\"app.py\"]")]);
+    steps.push([500,()=>{log(`Successfully tagged cloudforge/${app.slug}:${d.commit}`,"l-ok");ev("STARTING");d.runtime.push({m:`${now()} container started (cpu=0.5, mem=256m)`});}]);
+    steps.push([1100,()=>{d.runtime.push({m:`${now()} GET /health 200`},{m:`${now()} listening on :8000`});log("Health check passed","l-ok");app.startedAt=Date.now();ev("HEALTHY");app.busy=false;startMetrics(app);}]);
+  }
+  let t=0;steps.forEach(([ms,fn])=>{t+=ms;setTimeout(fn,t)});
+}
+
+/* fake metrics, labelled as simulated in the UI */
+const timers={};
+function startMetrics(app){
+  clearInterval(timers[app.id]);
+  app.cpu=[];app.mem=[];
+  timers[app.id]=setInterval(()=>{
+    if(app.status!=="HEALTHY"){clearInterval(timers[app.id]);return}
+    app.cpu.push(3+Math.random()*12);app.mem.push(60+Math.random()*30);
+    if(app.cpu.length>30){app.cpu.shift();app.mem.shift()}
+    if(selected===app.id)render();
+  },1500);
+}
+function spark(vals,max){
+  if(vals.length<2)return'<svg class="spark" viewBox="0 0 100 40"></svg>';
+  const p=vals.map((v,i)=>`${(i/(29))*100},${40-(v/max)*38}`).join(" ");
+  return`<svg class="spark" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="trend"><polyline fill="none" stroke="var(--accent)" stroke-width="1.5" vector-effect="non-scaling-stroke" points="${p}"/></svg>`;
+}
+
+/* actions */
+function act(id,what){
+  const app=apps.find(a=>a.id===id);if(!app)return;
+  if(what==="stop"){app.status="STOPPED";app.startedAt=null;app.deployments[0]?.runtime.push({m:`${now()} container stopped`})}
+  if(what==="restart"&&!app.busy){app.status="STARTING";render();app.deployments[0]?.runtime.push({m:`${now()} container restarted`});setTimeout(()=>{app.status="HEALTHY";app.startedAt=Date.now();startMetrics(app);render()},1000)}
+  if(what==="redeploy"&&!app.busy)deploy(app,app.deployments[0]?.branch||"main");
+  if(what==="delete"){if(!confirm(`Delete ${app.owner}/${app.repo}? This removes its container and history.`))return;
+    clearInterval(timers[id]);apps.splice(apps.indexOf(app),1);selected=apps[0]?.id??null}
+  render();
+}
+window.act=act;window.pick=id=>{selected=id;render()};window.setTab=t=>{tab=t;render()};
+
+/* rendering */
+function uptime(app){
+  if(!app.startedAt)return"-";
+  const s=Math.floor((Date.now()-app.startedAt)/1000);return s<60?s+"s":Math.floor(s/60)+"m "+s%60+"s";
+}
+function render(){
+  const list=$("#apps");
+  list.innerHTML=apps.length?apps.map(a=>`
+    <button class="app" type="button" onclick="pick(${a.id})" ${a.id===selected?'aria-current="true"':""}>
+      <span class="dot s-${a.status}"></span>
+      <span><b>${esc(a.repo)}</b><small>${esc(a.owner)} · ${esc(a.status)}</small></span>
+    </button>`).join(""):'<div class="empty">No applications yet. Paste a GitHub URL above and press Deploy.</div>';
+
+  const app=apps.find(a=>a.id===selected);
+  const box=$("#detail");
+  if(!app){box.innerHTML='<div class="empty">Select an application to see its deployment, logs and metrics.</div>';return}
+  const d=app.deployments[0];
+  const idx=STAGES.indexOf(d.state);
+  const stageHtml=STAGES.map((s,i)=>{
+    let c="";
+    if(d.state==="FAILED")c=i<1?"done":i===1?"bad":"";
+    else if(app.status==="STOPPED")c=i<=3?"done":"";
+    else c=i<idx||d.state==="HEALTHY"?"done":i===idx?"cur":"";
+    return`<div class="${c}">${s==="BUILDING"&&d.state==="FAILED"?"FAILED":s}</div>`}).join("");
+  const url=`http://${app.slug}.localhost`;
+  const lines=tab==="build"?d.build.map(l=>`<span class="${l.c}">${esc(l.m)}</span>`).join("\n")
+    :d.runtime.map(l=>esc(l.m)).join("\n")||"No runtime logs yet.";
+  const live=app.status==="HEALTHY";
+  box.innerHTML=`
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">${esc(app.owner)}/${esc(app.repo)}</h2>
+      <span class="pill p-${app.status}">${esc(app.status)}</span>
+    </div>
+    <div class="states" aria-label="Deployment progress">${stageHtml}</div>
+    <div class="kv">
+      <div><span>URL</span>${live?`<a href="#" onclick="return false">${esc(url)}</a>`:"Not live"}</div>
+      <div><span>Commit</span>${esc(d.commit)} (${esc(d.branch)})</div>
+      <div><span>Uptime</span>${uptime(app)}</div>
+    </div>
+    <div class="row">
+      <button type="button" onclick="act(${app.id},'redeploy')" ${app.busy?"disabled":""}>Redeploy</button>
+      <button type="button" onclick="act(${app.id},'restart')" ${app.status!=="HEALTHY"?"disabled":""}>Restart</button>
+      <button type="button" onclick="act(${app.id},'stop')" ${app.status!=="HEALTHY"?"disabled":""}>Stop</button>
+      <button type="button" class="danger" onclick="act(${app.id},'delete')" ${app.busy?"disabled":""}>Delete</button>
+    </div>
+    <div class="tabs" role="tablist">
+      <button role="tab" type="button" aria-selected="${tab==="build"}" onclick="setTab('build')">Build logs</button>
+      <button role="tab" type="button" aria-selected="${tab==="runtime"}" onclick="setTab('runtime')">Runtime logs</button>
+    </div>
+    <pre id="log" tabindex="0">${lines||"Waiting for output…"}</pre>
+    <div class="charts">
+      <div><span>CPU % (simulated)</span>${spark(app.cpu,20)}</div>
+      <div><span>Memory MB (simulated)</span>${spark(app.mem,128)}</div>
+    </div>
+    <h2 style="margin-top:16px">Deployment history</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>#</th><th>Commit</th><th>Status</th><th>Started</th></tr></thead>
+      <tbody>${app.deployments.map(x=>`<tr><td>${x.n}</td><td>${esc(x.commit)}</td><td><span class="pill p-${x.state}">${x.state}</span></td><td>${esc(x.created)}</td></tr>`).join("")}</tbody>
+    </table></div>`;
+  const pre=$("#log");if(pre)pre.scrollTop=pre.scrollHeight;
+}
+render();
+setInterval(()=>{const a=apps.find(x=>x.id===selected);if(a&&a.status==="HEALTHY")render()},1000);
+</script>
+</body>
+</html>
