@@ -75,7 +75,7 @@ svg.spark{width:100%;height:60px;display:block}
 <div class="wrap">
   <header>
     <h1>CloudForge</h1>
-    <span class="badge">Demo mode: simulated data, backend not connected</span>
+    <span class="badge" id="conn">Connecting…</span>
     <span class="sp"></span>
     <button id="theme" type="button">Toggle theme</button>
   </header>
@@ -109,13 +109,8 @@ svg.spark{width:100%;height:60px;display:block}
 <script>
 "use strict";
 const STAGES=["QUEUED","BUILDING","STARTING","HEALTHY"];
-const apps=[];let selected=null;let tab="build";let seq=1;
-
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const now=()=>new Date().toLocaleTimeString();
-const sha=()=>Array.from({length:7},()=>"0123456789abcdef"[Math.random()*16|0]).join("");
-
 /* theme */
 $("#theme").onclick=()=>{
   const r=document.documentElement;
@@ -134,79 +129,65 @@ function parseRepo(u){
   return{owner:m[0],repo:m[1]};
 }
 
-$("#form").onsubmit=e=>{
+/* ---- API layer: all state now lives in FastAPI ---- */
+const API="http://localhost:8000/api/v1/apps";
+let apps=[],selected=null,tab="build",lastJson="";
+
+async function api(path="",opts={}){
+  const r=await fetch(API+path,{headers:{"Content-Type":"application/json"},...opts});
+  if(r.status===204)return null;
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok){
+    const d=data.detail;
+    throw new Error(typeof d==="string"?d:(d&&d[0]&&d[0].msg)||"Request failed ("+r.status+")");
+  }
+  return data;
+}
+
+function setConn(ok){
+  const c=$("#conn");
+  c.textContent=ok?"Connected to FastAPI at localhost:8000":"API offline: start the backend (docker compose up)";
+  c.style.color=ok?"var(--ok)":"var(--bad)";
+}
+
+async function refresh(){
+  try{
+    const data=await api();
+    setConn(true);
+    const json=JSON.stringify(data);
+    if(!apps.find(a=>a.id===selected))selected=data[0]?data[0].id:null;
+    if(json!==lastJson){lastJson=json;apps=data;render()}
+  }catch{setConn(false)}
+}
+
+$("#form").onsubmit=async e=>{
   e.preventDefault();
   const r=parseRepo($("#url").value);
   const br=$("#branch").value.trim();
   if(r.error){$("#err").textContent=r.error;return}
-  if(!/^[A-Za-z0-9._\/-]+$/.test(br)){$("#err").textContent="Branch name has invalid characters.";return}
   $("#err").textContent="";
-  let app=apps.find(a=>a.owner===r.owner&&a.repo===r.repo);
-  if(!app){
-    app={id:seq++,owner:r.owner,repo:r.repo,slug:(r.repo+"-"+Math.random().toString(36).slice(2,6)).toLowerCase().replace(/[^a-z0-9-]/g,"-"),
-      deployments:[],status:"NONE",cpu:[],mem:[],startedAt:null};
-    apps.unshift(app);
-  }
-  if(app.busy){$("#err").textContent="A deployment is already running for this app.";return}
-  selected=app.id;deploy(app,br);
+  try{
+    const a=await api("",{method:"POST",body:JSON.stringify({url:$("#url").value.trim(),branch:br})});
+    selected=a.id;lastJson="";await refresh();
+  }catch(x){$("#err").textContent=x.message}
 };
 
-/* simulated deployment pipeline: QUEUED -> BUILDING -> STARTING -> HEALTHY | FAILED */
-function deploy(app,branch){
-  const d={n:app.deployments.length+1,commit:sha(),branch,state:"QUEUED",build:[],runtime:[],events:[],created:now()};
-  const fail=/broken/i.test(app.repo);
-  app.deployments.unshift(d);app.busy=true;app.status="QUEUED";
-  const ev=(s)=>{d.state=s;app.status=s;d.events.push({t:now(),s});render()};
-  const log=(m,c="")=>{d.build.push({m,c});render()};
-  ev("QUEUED");
-  const steps=[
-    [600,()=>{ev("BUILDING");log(`$ git clone --depth 1 --branch ${branch} github.com/${app.owner}/${app.repo}`);}],
-    [900,()=>log(`Checked out ${d.commit}`)],
-    [700,()=>log("Step 1/5 : FROM python:3.12-slim")],
-    [700,()=>log("Step 2/5 : WORKDIR /app")],
-    [800,()=>log("Step 3/5 : COPY requirements.txt . && pip install -r requirements.txt")],
-  ];
-  if(fail){
-    steps.push([900,()=>{log("Step 4/5 : RUN pip install not-a-real-package==9.9.9","");log("ERROR: No matching distribution found for not-a-real-package==9.9.9","l-err");}]);
-    steps.push([500,()=>{log("Build failed: exit code 1","l-err");ev("FAILED");app.busy=false;render()}]);
-  }else{
-    steps.push([800,()=>log("Step 4/5 : COPY . .")]);
-    steps.push([600,()=>log("Step 5/5 : CMD [\"python\",\"app.py\"]")]);
-    steps.push([500,()=>{log(`Successfully tagged cloudforge/${app.slug}:${d.commit}`,"l-ok");ev("STARTING");d.runtime.push({m:`${now()} container started (cpu=0.5, mem=256m)`});}]);
-    steps.push([1100,()=>{d.runtime.push({m:`${now()} GET /health 200`},{m:`${now()} listening on :8000`});log("Health check passed","l-ok");app.startedAt=Date.now();ev("HEALTHY");app.busy=false;startMetrics(app);}]);
-  }
-  let t=0;steps.forEach(([ms,fn])=>{t+=ms;setTimeout(fn,t)});
+async function act(id,what){
+  const a=apps.find(x=>x.id===id);
+  if(what==="delete"&&!confirm(`Delete ${a.owner}/${a.repo}? This removes its history.`))return;
+  try{
+    if(what==="delete")await api("/"+id,{method:"DELETE"});
+    else await api(`/${id}/${what}`,{method:"POST"});
+  }catch(x){alert(x.message)}
+  lastJson="";await refresh();
 }
+window.act=act;window.pick=id=>{selected=id;render()};window.setTab=t=>{tab=t;render()};
 
-/* fake metrics, labelled as simulated in the UI */
-const timers={};
-function startMetrics(app){
-  clearInterval(timers[app.id]);
-  app.cpu=[];app.mem=[];
-  timers[app.id]=setInterval(()=>{
-    if(app.status!=="HEALTHY"){clearInterval(timers[app.id]);return}
-    app.cpu.push(3+Math.random()*12);app.mem.push(60+Math.random()*30);
-    if(app.cpu.length>30){app.cpu.shift();app.mem.shift()}
-    if(selected===app.id)render();
-  },1500);
-}
 function spark(vals,max){
   if(vals.length<2)return'<svg class="spark" viewBox="0 0 100 40"></svg>';
   const p=vals.map((v,i)=>`${(i/(29))*100},${40-(v/max)*38}`).join(" ");
   return`<svg class="spark" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="trend"><polyline fill="none" stroke="var(--accent)" stroke-width="1.5" vector-effect="non-scaling-stroke" points="${p}"/></svg>`;
 }
-
-/* actions */
-function act(id,what){
-  const app=apps.find(a=>a.id===id);if(!app)return;
-  if(what==="stop"){app.status="STOPPED";app.startedAt=null;app.deployments[0]?.runtime.push({m:`${now()} container stopped`})}
-  if(what==="restart"&&!app.busy){app.status="STARTING";render();app.deployments[0]?.runtime.push({m:`${now()} container restarted`});setTimeout(()=>{app.status="HEALTHY";app.startedAt=Date.now();startMetrics(app);render()},1000)}
-  if(what==="redeploy"&&!app.busy)deploy(app,app.deployments[0]?.branch||"main");
-  if(what==="delete"){if(!confirm(`Delete ${app.owner}/${app.repo}? This removes its container and history.`))return;
-    clearInterval(timers[id]);apps.splice(apps.indexOf(app),1);selected=apps[0]?.id??null}
-  render();
-}
-window.act=act;window.pick=id=>{selected=id;render()};window.setTab=t=>{tab=t;render()};
 
 /* rendering */
 function uptime(app){
@@ -270,6 +251,8 @@ function render(){
   const pre=$("#log");if(pre)pre.scrollTop=pre.scrollHeight;
 }
 render();
+refresh();
+setInterval(refresh,1000);
 setInterval(()=>{const a=apps.find(x=>x.id===selected);if(a&&a.status==="HEALTHY")render()},1000);
 </script>
 </body>
